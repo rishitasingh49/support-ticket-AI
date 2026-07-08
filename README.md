@@ -8,19 +8,29 @@ An AI-powered system to query customer support ticket data in plain English, and
 - **Anomaly detection**: automatically flags tickets with unusually long resolution times, and high-priority tickets left unresolved too long.
 - **REST API**: 3 endpoints — health check, natural language query, and anomaly report.
 
-## Architecture
+```
+CSV file
+   │
+   ▼
+db.py  →  loads into SQLite (data/tickets.db)
 
-CSV file  ──►  db.py (loads into SQLite: data/tickets.db)
-                    │
-   User question ───┼──►  query_engine.py
-                    │        │
-                    │        ├─► llm.py (Groq) turns question into SQL
-                    │        ├─► runs SQL on SQLite, gets real rows
-                    │        └─► llm.py phrases rows into a sentence
-                    │
-   anomalies.py  ───┴──►  pandas rules on SQLite data (no LLM needed)
+User question
+   │
+   ▼
+query_engine.py
+   │
+   ├─► llm.py (Groq) turns the question into SQL
+   ├─► runs that SQL on SQLite, gets real rows back
+   └─► llm.py phrases those rows into a natural sentence
 
-main.py (FastAPI)      -> exposes /health, /query, /anomalies
+anomalies.py
+   │
+   └─► runs pandas statistical rules directly on SQLite data (no LLM needed)
+
+main.py (FastAPI)
+   │
+   └─► exposes it all via /health, /query, /anomalies
+```
 
 **Why this design:** the LLM never sees the raw ticket data — it only ever sees the table schema and generates SQL. The SQL is executed by real code, not the LLM, so answers can't be hallucinated numbers. Anomaly detection is pure statistics/rules (mean + 2×std, and a 24h SLA rule) — more reliable and explainable than asking an LLM to "guess" what's anomalous.
 
